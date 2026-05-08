@@ -28,10 +28,11 @@ esp32:
   framework:
     type: arduino
 
-# ESP32C3 XIAO has no exposed UART0 header - native USB-CDC carries the
-# debug log so the hardware UART can be dedicated to Modbus.
+# ESP32C3 XIAO has no exposed UART0 header - debug log goes over the
+# built-in USB-Serial-JTAG interface so the hardware UART can be
+# dedicated to Modbus.
 logger:
-  hardware_uart: USB_CDC
+  hardware_uart: USB_SERIAL_JTAG
   level: INFO
 
 api:
