@@ -91,9 +91,10 @@ text_sensor:
     ssid:
       name: "Connected SSID"
 
-  # Bypass state translated to a human-readable string.
-  # Default case prints the raw integer so unmapped values show up clearly
-  # in HA and tell us what to add to the switch.
+  # Bypass state - 5-state enum from the official Brink UWA2-B Modbus
+  # docs (mirrored in the TapHome integration). The HA community thread
+  # cites a 3-state mapping {Init/Open/Closed} which is incomplete for
+  # the Flair 325 - the unit reports separate transitional states.
   - platform: template
     name: "Bypass state"
     id: bypass_state_text
@@ -103,14 +104,18 @@ text_sensor:
       ESP_LOGI("brink", "Bypass state raw value: %.0f", raw);
       if (isnan(raw)) return {"Unknown"};
       switch ((int) raw) {
-        case 0:  return {"Init"};
-        case 1:  return {"Open"};
-        case 2:  return {"Closed"};
+        case 0:  return {"Initialize"};
+        case 1:  return {"Opening"};
+        case 2:  return {"Closing"};
+        case 3:  return {"Open"};
+        case 4:  return {"Closed"};
         default: return {std::string("Unknown(") + to_string((int) raw) + ")"};
       }
     update_interval: 30s
 
-  # Unit operating mode translated to a human-readable string.
+  # Unit operating mode - 15-state enum from the Brink UWA2-B Modbus
+  # documentation. Value 12 ("Auto Modbus") is the expected steady state
+  # when this ESP is driving the unit through registers 8000-8002.
   - platform: template
     name: "Unit mode"
     id: unit_mode_text
@@ -121,9 +126,20 @@ text_sensor:
       if (isnan(raw)) return {"Unknown"};
       switch ((int) raw) {
         case 0:  return {"Standby"};
-        case 1:  return {"Normal"};
-        case 2:  return {"Bootloader"};
-        case 3:  return {"Error"};
+        case 1:  return {"Bootloader"};
+        case 2:  return {"Non-blocking error"};
+        case 3:  return {"Blocking error"};
+        case 4:  return {"Manual"};
+        case 5:  return {"Holiday"};
+        case 6:  return {"Night ventilation"};
+        case 7:  return {"Party"};
+        case 8:  return {"Bypass boost"};
+        case 9:  return {"Normal boost"};
+        case 10: return {"Auto CO2"};
+        case 11: return {"Auto eBus"};
+        case 12: return {"Auto Modbus"};
+        case 13: return {"Auto Portal"};
+        case 14: return {"Auto Local"};
         default: return {std::string("Unknown(") + to_string((int) raw) + ")"};
       }
     update_interval: 30s

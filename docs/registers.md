@@ -69,4 +69,40 @@ Track which registers actually work on this specific unit (Brink Flair 325 with 
 
 The HA community thread implicitly assumed FC 0x03 for everything (which works only with the UWA2-B firmware). Without the card the same addresses are accessible, just through the input-register table.
 
-**Open question:** the enum mapping for 4020 Unit mode and 4050 Bypass state on the Flair 325 is *not* the {Standby/Bootloader/Error} / {Init/Open/Closed} mapping cited in the thread. The current firmware logs the raw integer at INFO level (`[I][brink] Bypass state raw value: N`); decode against the unit's actual state and update the lambda mapping in the next iteration.
+## Enum decoding
+
+The HA community thread's 3-state bypass mapping and 4-state unit-mode mapping are incomplete for the Flair 325. The official UWA2-B Modbus docs (mirrored in the TapHome integration) have the full enums.
+
+### 4020 Unit mode
+
+| Value | Meaning |
+|---:|---|
+| 0 | Standby |
+| 1 | Bootloader |
+| 2 | Non-blocking error |
+| 3 | Blocking error |
+| 4 | Manual |
+| 5 | Holiday |
+| 6 | Night ventilation |
+| 7 | Party |
+| 8 | Bypass boost |
+| 9 | Normal boost |
+| 10 | Auto CO2 |
+| 11 | Auto eBus |
+| 12 | Auto Modbus |
+| 13 | Auto Portal |
+| 14 | Auto Local |
+
+Observed on this unit while ESP drives 8001/8002: `12 = Auto Modbus` ✓
+
+### 4050 Bypass state
+
+| Value | Meaning |
+|---:|---|
+| 0 | Initialize |
+| 1 | Opening |
+| 2 | Closing |
+| 3 | Open |
+| 4 | Closed |
+
+Observed on this unit (bypass mode = Auto, ambient ~21°C indoor warmer): `3 = Open` ✓ — confirmed against the unit's own LCD readout.
