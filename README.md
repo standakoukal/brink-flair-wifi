@@ -13,18 +13,21 @@ See [docs/wiring.md](docs/wiring.md) for the wiring diagram and the corrected ES
 
 ## Project status
 
-✅ **Working as a monitoring + parametrisation bridge.**
+✅ **Working — full bidirectional integration**, including direct fan-speed control via the Modbus **Flow** mode (`Modbus control mode = Flow`, `Flow setpoint` register 8002). This is true on a Flair 325 *without* the UWA2-B expansion card — initial assumption that ventilation control needs UWA2-B turned out to be wrong.
 
-⚠️ **Direct fan-speed control over Modbus requires the Brink UWA2-B card** (not installed on this test unit). Without it the unit ACKs writes to `Ventilation step` / `Flow setpoint` but ignores them — the fans only respond to the front display. With UWA2-B the integration becomes fully bidirectional. See [docs/registers.md](docs/registers.md) for the empirical write-test log.
+⚠️ One caveat: the Modbus **Step** mode (`Modbus control mode = Step`, register 8001) does **not** work without UWA2-B — writes are acknowledged but the unit silently flips Unit mode to `Manual` and the fans don't change. **Use Flow mode** for HA-driven ventilation control.
 
-| Group | Count | What you get without UWA2-B |
+| Group | Count | What you get |
 |---|---:|---|
 | Sensors (read-only) | 8 | supply / exhaust / outdoor temperature, supply / exhaust humidity, both airflows, filter status |
-| Text sensors | 2 | bypass state (5-state enum), unit mode (15-state enum) |
-| Number controls | 7 | ventilation step, flow setpoint, flow levels 1–3, in/out flow imbalance — *flow levels and imbalance work; ventilation step / flow setpoint are accepted on the bus but ignored by the unit until UWA2-B is installed* |
+| Text sensors | 3 | bypass state, unit mode, filter status (Clean/Dirty) |
+| Number controls | 8 | ventilation step¹, **flow setpoint (works!)**, flow levels 0–3, in/out flow imbalance² |
 | Select controls | 2 | Modbus control mode, bypass mode |
 | Switch controls | 1 | bypass boost |
 | Diagnostics | 4 | online status, WiFi RSSI, uptime, IP / SSID |
+
+¹ Ventilation step (8001) is exposed as a writable slider but only takes effect with UWA2-B installed.
+² Imbalance registers (6035/6036) — community thread and Brink official docs disagree on their meaning. Don't move the sliders blindly. See [docs/registers.md](docs/registers.md).
 
 ## Key gotchas (so you don't repeat my mistakes)
 

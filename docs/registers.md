@@ -59,22 +59,22 @@ The Flair 325 does **not** have a sensor for return air between the house and th
 
 ## UWA2-B limitation (this unit)
 
-This Flair 325 has Modbus enabled in the menu but **no UWA2-B expansion card**. Hardware-confirmed limitation: the unit accepts Modbus reads and parametrisation writes, but **does not honour Modbus-driven ventilation commands**.
+This Flair 325 has Modbus enabled in the menu but **no UWA2-B expansion card**. Despite that, most of the Modbus map is fully functional, including direct fan-speed control via Flow mode.
 
-What works:
+What works (verified on this unit):
 
 - All status sensor reads (4xxx via FC 0x04)
 - Flow level setpoints (6000–6003) — change m³/h-per-step
 - Bypass mode and Bypass boost (6100, 6104)
+- **Flow mode control** — set `8000 = 2` (Flow) and write the desired flow to `8002`; the unit changes fan speed accordingly (range `{0, 50..325}` m³/h on the Flair 325)
 
-What does **not** work:
+What does **not** work without UWA2-B:
 
-- `8001` / `8002` writes — value is acknowledged on the wire, the unit does not change Step on its display, and the fans don't move
-- `8000` mode switch — bus accepts the write, but Unit mode (4020) stays at `Manual` (4); the unit never actually enters Auto Modbus state
+- **Step mode control** — writing `8001` while `8000 = 1` (Step) is acknowledged on the bus, but the unit silently flips Unit mode (4020) to `Manual` (4) and the fans don't change. Use Flow mode instead.
 
-To get full Modbus control of step/flow the UWA2-B (or UWA2-E) PCB needs to be installed in the unit. Without it the integration is read-only for ventilation; you can still parametrise the per-step flow rates and read everything.
+So the practical workflow on a bare Flair 325 is: **`Modbus control mode → Flow`, then drive the `Flow setpoint` slider from HA**. Step mode is best left to units with the UWA2-B installed.
 
-The 8001 / 8002 registers stay exposed as `number` (writable) in the YAML — that's the correct ESPHome shape for a holding register and works directly if a UWA2-B card is installed later.
+The 8001 / 8002 registers stay exposed as `number` (writable) in the YAML — Flow setpoint actually works, and Ventilation step is correct in shape so it'll work the day a UWA2-B is added.
 
 ## Enum decoding
 
