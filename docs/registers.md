@@ -33,8 +33,8 @@ The thread notes there is no extract-air sensor between house and unit on this m
 | 6100 | Bypass mode | U_WORD enum | 0 Auto / 1 Closed / 2 Open | When forced, may suppress flow commands. |
 | 6104 | Bypass boost | bit | 0/1 | Switch in HA. |
 | 8000 | Modbus control mode | U_WORD enum | 0 LCD / 1 Step / 2 Flow | **Must be 1 or 2 for steps/flow writes to take effect.** |
-| 8001 | Ventilation step | S_WORD | **1–3** | Active when 8000 = Step. Writing 0 returns Modbus exception 3 (ILLEGAL_DATA_VALUE) - the HA thread's "0–3" range is wrong for the Flair 325. To stop ventilation, switch 8000 to LCD or set 8002 to 0 with 8000 = Flow. |
-| 8002 | Flow setpoint | S_WORD | 0–280 m³/h | Active when 8000 = Flow. |
+| 8001 | Ventilation step | S_WORD | **1–3** | Writes accepted **only when 8000 = Step**, otherwise exception 3 (ILLEGAL_DATA_VALUE). The HA thread's "0–3" range is wrong for the Flair 325. To stop ventilation, switch 8000 to LCD or set 8002 to 0 with 8000 = Flow. |
+| 8002 | Flow setpoint | S_WORD | 0–280 m³/h | Writes accepted **only when 8000 = Flow**, otherwise exception 3 (ILLEGAL_DATA_VALUE). |
 
 ## Validation log
 
