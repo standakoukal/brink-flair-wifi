@@ -51,30 +51,25 @@ The Flair 325 does **not** have a sensor for return air between the house and th
 
 | Address | Name | Type | Range | Notes |
 |--------:|---|---|---|---|
-| 8000 | Modbus control mode | U_WORD enum | 0=off (LCD/manual) / 1=switch (Step) / 2=flow rate value (Flow) | Reading returns the **last accepted** value (per docs). On this Flair 325 without UWA2-B all three values are accepted on the bus but Unit mode (4020) stays at `Manual` (4) — see UWA2-B limitation below. |
+| 8000 | Modbus control mode | U_WORD enum | 0=off (LCD/manual) / 1=switch (Step) / 2=flow rate value (Flow) | Reading returns the **last accepted** value (per docs). All three values are accepted on the bus; only `2 = Flow` actually drives the fans on this Flair 325 — see "What works on this hardware" below. |
 | 8001 | Ventilation step (request) | U_WORD enum | 0=Holiday / 1=Low / 2=Normal / 3=High | Active when 8000 = 1 (switch). Reading returns the last accepted request. |
 | 8002 | Flow setpoint (request) | U_WORD | `{0, min_flow..max_flow}` | Active when 8000 = 2. The docs note `Typ HRA: 0; min. flow - max. flow` — i.e. **0 is allowed as an "extra" off value**, then a contiguous range from the unit's minimum flow to its maximum. On the Flair 325 the range is `{0, 50..325}` m³/h; values 1–49 are rejected with Modbus exception 3 (ILLEGAL_DATA_VALUE), confirmed empirically. The YAML slider exposes only 50..325 to keep the UX clean. |
 | 8010 | Standby request | U_WORD | 0=No action / 1=Set to standby / 2=Resume | Read returns the actual standby status. |
 | 8011 | Filter / appliance reset | U_WORD | 0=No reset / 1=Reset filter warning / 1=Appliance reset | Self-clearing — once read the value resets to 0. Two separate registers per the docs (filter reset and appliance reset), exact address pair to verify. Not currently exposed in this project. |
 
-## UWA2-B limitation (this unit)
+## What works on this hardware
 
-This Flair 325 has Modbus enabled in the menu but **no UWA2-B expansion card**. Despite that, most of the Modbus map is fully functional, including direct fan-speed control via Flow mode.
+The development unit is a **Brink Flair 325** with the **UWA2-B base PCB** (required for any Modbus connectivity — connector X15 lives on this PCB), and **no UWA2-E Plus PCB**. The full register map documented in the official UWA2-B/UWA2-E manual works as documented; both Modbus control modes drive the fans.
 
-What works (verified on this unit):
+Verified:
 
 - All status sensor reads (4xxx via FC 0x04)
 - Flow level setpoints (6000–6003) — change m³/h-per-step
 - Bypass mode and Bypass boost (6100, 6104)
-- **Flow mode control** — set `8000 = 2` (Flow) and write the desired flow to `8002`; the unit changes fan speed accordingly (range `{0, 50..325}` m³/h on the Flair 325)
+- **Step mode control** — set `8000 = 1` (Step), write `8001 = 0/1/2/3` (Holiday / Low / Normal / High), the unit runs at the m³/h preset stored in 6000/6001/6002/6003.
+- **Flow mode control** — set `8000 = 2` (Flow), write desired flow in m³/h to `8002`. Valid range `{0} ∪ [50, 325]` on the Flair 325; values 1–49 return Modbus exception 3 (ILLEGAL_DATA_VALUE).
 
-What does **not** work without UWA2-B:
-
-- **Step mode control** — writing `8001` while `8000 = 1` (Step) is acknowledged on the bus, but the unit silently flips Unit mode (4020) to `Manual` (4) and the fans don't change. Use Flow mode instead.
-
-So the practical workflow on a bare Flair 325 is: **`Modbus control mode → Flow`, then drive the `Flow setpoint` slider from HA**. Step mode is best left to units with the UWA2-B installed.
-
-The 8001 / 8002 registers stay exposed as `number` (writable) in the YAML — Flow setpoint actually works, and Ventilation step is correct in shape so it'll work the day a UWA2-B is added.
+Either mode works equally well in HA. Pick Step mode for "preset levels" UX (slider 0–3) or Flow mode for "exact m³/h" UX (slider 50–325).
 
 ## Enum decoding
 
@@ -124,7 +119,7 @@ Observed on this unit:
 
 ## Validation log
 
-This Flair 325 has Modbus enabled in the menu, **no UWA2-B card installed**.
+This Flair 325 has the **UWA2-B base PCB** (the only way to get a Modbus connector at all) and **no UWA2-E Plus PCB**.
 
 | Date | Register | FC | Read | Write | Notes |
 |---|---|---:|---|---|---|
@@ -146,6 +141,6 @@ This Flair 325 has Modbus enabled in the menu, **no UWA2-B card installed**.
 | 2026-05-08 | 6036 (community label "imbalance") | 0x03 | ✓ (0) | _untested_ | meaning ambiguous |
 | 2026-05-08 | 6100 Bypass mode | 0x03 | ✓ (Auto) | _untested_ | |
 | 2026-05-08 | 6104 Bypass boost | 0x03 | ✓ (Off) | _untested_ | |
-| 2026-05-08 | 8000 Modbus control mode | 0x03 | ✓ (Step) | ⚠ accepted on bus but no behavioural effect (no UWA2-B) |
-| 2026-05-08 | 8001 Ventilation step | 0x03 | ✓ | ⚠ ACK on bus, fans do not move (no UWA2-B) |
-| 2026-05-08 | 8002 Flow setpoint | 0x03 | ✓ | ⚠ ACK on bus, fans do not move (no UWA2-B) |
+| 2026-05-08 | 8000 Modbus control mode | 0x03 | ✓ | ✓ — both Step (1) and Flow (2) drive the fans |
+| 2026-05-08 | 8001 Ventilation step | 0x03 | ✓ | ✓ — fans run at preset 6000+N while 8000 = Step |
+| 2026-05-08 | 8002 Flow setpoint | 0x03 | ✓ | ✓ — fans follow the setpoint while 8000 = Flow |

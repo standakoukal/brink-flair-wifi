@@ -13,9 +13,10 @@ See [docs/wiring.md](docs/wiring.md) for the wiring diagram and the corrected ES
 
 ## Project status
 
-✅ **Working — full bidirectional integration**, including direct fan-speed control via the Modbus **Flow** mode (`Modbus control mode = Flow`, `Flow setpoint` register 8002). This is true on a Flair 325 *without* the UWA2-B expansion card — initial assumption that ventilation control needs UWA2-B turned out to be wrong.
+✅ **Working — full bidirectional integration.** All Modbus registers from the official [UWA2-B/UWA2-E installation regulations](https://www.brinkclimatesystems.nl/documenten/modbus-uwa2-b-uwa2-e-installation-regulations-614882.pdf) behave as documented on this unit (a Brink Flair 325 with the UWA2-B base PCB, no UWA2-E Plus PCB). Both Modbus control modes drive the fans:
 
-⚠️ One caveat: the Modbus **Step** mode (`Modbus control mode = Step`, register 8001) does **not** work without UWA2-B — writes are acknowledged but the unit silently flips Unit mode to `Manual` and the fans don't change. **Use Flow mode** for HA-driven ventilation control.
+- **Step mode** (`Modbus control mode = Step`, register `8001`) — pick step 0/1/2/3 (Holiday / Low / Normal / High), the unit runs at the m³/h preset configured in `Flow level 0..3` (registers `6000`–`6003`).
+- **Flow mode** (`Modbus control mode = Flow`, register `8002`) — write a flow rate directly in m³/h. Valid range is `{0} ∪ [50, 325]` on the Flair 325 (values 1–49 return Modbus exception 3).
 
 | Group | Count | What you get |
 |---|---:|---|
@@ -26,7 +27,7 @@ See [docs/wiring.md](docs/wiring.md) for the wiring diagram and the corrected ES
 | Switch controls | 1 | bypass boost |
 | Diagnostics | 4 | online status, WiFi RSSI, uptime, IP / SSID |
 
-¹ Ventilation step (8001) is exposed as a writable slider but only takes effect with UWA2-B installed.
+¹ Ventilation step (8001) and Flow setpoint (8002) both work with the corresponding Modbus control mode active.
 ² Imbalance registers (6035/6036) — community thread and Brink official docs disagree on their meaning. Don't move the sliders blindly. See [docs/registers.md](docs/registers.md).
 
 ## Key gotchas (so you don't repeat my mistakes)

@@ -161,11 +161,11 @@ text_sensor:
 # https://community.home-assistant.io/t/brink-flair-325-heat-recovery-unit-esphome-modbus-integration-5/423182
 #
 # All 4xxx status registers use Read Input Register (FC 0x04, ESPHome
-# register_type: read) instead of Read Holding (FC 0x03). On a Brink
-# without the UWA2-B card the holding-table entries return Modbus
-# exception 2 (ILLEGAL_DATA_ADDRESS) for these addresses, but they are
-# accessible via the input-register table. The 6xxx/8xxx control
-# registers below are still proper holding registers (read/write).
+# register_type: read), per the UWA2-B Modbus spec. The HA community
+# thread implicitly used FC 0x03 (Read Holding) and got
+# ILLEGAL_DATA_ADDRESS for the 4xxx range - that was the wrong function
+# code. The 6xxx/8xxx registers are proper holding registers
+# (read/write via FC 0x03 / 0x06).
 # ---------------------------------------------------------------------------
 sensor:
   - platform: wifi_signal
@@ -294,22 +294,17 @@ sensor:
 # ---------------------------------------------------------------------------
 # Writable controls
 #
-# WARNING: writing to a register that is not supported on a unit without
-# the UWA2-B expansion card may put the unit into an error state. Test one
-# control at a time and confirm the unit reacts before adding more.
-#
-# Also note from the thread: when the bypass override is active, the unit
-# may ignore flow commands - test bypass first.
+# When the bypass override is active (Bypass mode != Auto), the unit may
+# ignore flow commands - test bypass first.
 # ---------------------------------------------------------------------------
 number:
-  # NOTE on Ventilation step (8001) and Flow setpoint (8002):
-  # On the Brink Flair 325 *without* a UWA2-B Modbus card, the unit
-  # acknowledges writes on the bus but does not act on them - the front
-  # display does not update, the fans don't move, and Unit mode (4020)
-  # falls back to "Manual" (4). With a UWA2-B card the same writes
-  # actually change ventilation (per the HA community thread). The
-  # entities are kept writable so the integration is correct on either
-  # hardware setup; only the runtime effect differs.
+  # Both Ventilation step (8001) and Flow setpoint (8002) drive the
+  # fans when the matching Modbus control mode (8000) is selected:
+  #   8000 = 1 (Step): write 0..3 to 8001, the unit runs at the m^3/h
+  #                    preset stored in 6000..6003.
+  #   8000 = 2 (Flow): write desired m^3/h to 8002, valid range
+  #                    {0} U [50, 325] on the Flair 325.
+  # Both styles work; pick whichever fits your HA UX.
   - platform: modbus_controller
     modbus_controller_id: brink
     name: "Ventilation step"

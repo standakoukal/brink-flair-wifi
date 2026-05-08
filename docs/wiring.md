@@ -133,4 +133,4 @@ In the unit's menu (Communication → Bus type), set:
 ## Next
 
 - [esphome/](../esphome/) will hold the ESPHome dashboard YAML
-- [docs/registers.md](registers.md) (to be created) will document the Modbus registers actually working on this specific unit (Modbus enabled without UWA2-B card)
+- [docs/registers.md](registers.md) documents the Modbus registers verified on this specific unit (Brink Flair 325, UWA2-B base PCB, no UWA2-E Plus PCB)
