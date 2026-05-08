@@ -25,9 +25,10 @@ The thread notes there is no extract-air sensor between house and unit on this m
 
 | Address | Name | Type | Range | Notes |
 |--------:|---|---|---|---|
-| 6001 | Flow level 1 | S_WORD | 50–325 m³/h | Each level must be ≥ the previous one. |
-| 6002 | Flow level 2 | S_WORD | 50–325 m³/h | Each level must be ≥ the previous one. |
-| 6003 | Flow level 3 | S_WORD | 50–325 m³/h | Each level must be ≥ the previous one. |
+| 6000 | Flow level 0 (Holiday) | S_WORD | 0–325 m³/h | Step 0 is "Holiday" mode. Pairs with `8001 = 0`. Address inferred from the symmetry with 6001/6002/6003 — verify against your unit. |
+| 6001 | Flow level 1 (Low) | S_WORD | 50–325 m³/h | Each level must be ≥ the previous one. |
+| 6002 | Flow level 2 (Normal) | S_WORD | 50–325 m³/h | Each level must be ≥ the previous one. |
+| 6003 | Flow level 3 (High) | S_WORD | 50–325 m³/h | Each level must be ≥ the previous one. |
 | 6035 | Inflow imbalance | S_WORD | -15…+15 % | |
 | 6036 | Outflow imbalance | S_WORD | -15…+15 % | |
 | 6100 | Bypass mode | U_WORD enum | 0 Auto / 1 Closed / 2 Open | When forced, may suppress flow commands. |

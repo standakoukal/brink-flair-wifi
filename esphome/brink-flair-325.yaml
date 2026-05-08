@@ -329,6 +329,25 @@ number:
   # Flow level setpoints (6001-6003) and Bypass settings DO work via
   # Modbus - those stay writable below.
 
+  # Flow level 0 corresponds to step 0 (Holiday) on the unit. The HA
+  # community thread doesn't mention 6000 explicitly, but Brink's step
+  # numbering (0 Holiday / 1 Low / 2 Normal / 3 High) suggests the
+  # m^3/h setpoint for Holiday lives one register below the others.
+  # If the Flair 325 doesn't expose 6000 we'll see exception 2 in the
+  # logs and can comment this entry out.
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Flow level 0 (Holiday)"
+    id: flow_level_0
+    address: 6000
+    value_type: S_WORD
+    register_type: holding
+    min_value: 0
+    max_value: 325
+    step: 5
+    unit_of_measurement: "m³/h"
+    mode: box
+
   - platform: modbus_controller
     modbus_controller_id: brink
     name: "Flow level 1"
