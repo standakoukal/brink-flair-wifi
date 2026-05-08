@@ -1,0 +1,386 @@
+# ESPHome configuration for the Brink Flair 325 heat-recovery unit.
+#
+# Hardware: Seeed XIAO ESP32C3 + XIAO RS485 Expansion Board
+# Bus:      Modbus RTU @ 19200 8N1, slave address 0x01
+# Power:    24 V from the unit -> step-down 5 V/3 A -> XIAO 5V pin
+#
+# IMPORTANT pin map (ESP32C3 on the expansion board, NOT the values from
+# the Home Assistant community thread which target a classic ESP32):
+#   D4 = GPIO6  -> RS485 RX
+#   D5 = GPIO7  -> RS485 TX
+#   D2 = GPIO4  -> RS485 DE/RE (driver enable, HIGH = TX, LOW = RX)
+#
+# Secrets are pulled from the ESPHome dashboard's shared secrets.yaml.
+# Required keys:
+#   wifi_ssid, wifi_password, ap_password, api_key, ota_password
+
+substitutions:
+  device_name: brink-flair-325
+  friendly_name: "Brink Flair 325"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  comment: "WiFi bridge to Brink Flair 325 over Modbus RTU"
+
+esp32:
+  board: seeed_xiao_esp32c3
+  framework:
+    type: arduino
+
+# ESP32C3 XIAO has no exposed UART0 header - native USB-CDC carries the
+# debug log so the hardware UART can be dedicated to Modbus.
+logger:
+  hardware_uart: USB_CDC
+  level: INFO
+
+api:
+  encryption:
+    key: !secret api_key
+
+ota:
+  - platform: esphome
+    password: !secret ota_password
+
+wifi:
+  ssid: !secret wifi_ssid
+  password: !secret wifi_password
+  ap:
+    ssid: "${device_name} fallback"
+    password: !secret ap_password
+
+captive_portal:
+
+# RS485 UART. flow_control_pin drives DE/RE on the expansion board.
+uart:
+  id: mod_bus
+  tx_pin: GPIO7
+  rx_pin: GPIO6
+  baud_rate: 19200
+  parity: NONE
+  stop_bits: 1
+  flow_control_pin:
+    number: GPIO4
+    inverted: false
+
+modbus:
+  id: modbus_hvac
+  uart_id: mod_bus
+  send_wait_time: 200ms
+
+modbus_controller:
+  - id: brink
+    address: 0x01
+    modbus_id: modbus_hvac
+    setup_priority: -10
+    update_interval: 30s
+
+binary_sensor:
+  - platform: status
+    name: "Online"
+
+text_sensor:
+  - platform: wifi_info
+    ip_address:
+      name: "IP address"
+    ssid:
+      name: "Connected SSID"
+
+  # Bypass state translated to a human-readable string.
+  - platform: template
+    name: "Bypass state"
+    id: bypass_state_text
+    icon: mdi:valve
+    lambda: |-
+      switch ((int) id(bypass_state_raw).state) {
+        case 0:  return {"Init"};
+        case 1:  return {"Open"};
+        case 2:  return {"Closed"};
+        default: return {"Unknown"};
+      }
+    update_interval: 30s
+
+  # Unit operating mode translated to a human-readable string.
+  - platform: template
+    name: "Unit mode"
+    id: unit_mode_text
+    icon: mdi:state-machine
+    lambda: |-
+      switch ((int) id(unit_mode_raw).state) {
+        case 0:  return {"Standby"};
+        case 1:  return {"Normal"};
+        case 2:  return {"Bootloader"};
+        case 3:  return {"Error"};
+        default: return {"Unknown"};
+      }
+    update_interval: 30s
+
+# All sensors live under a single top-level key. Diagnostics first,
+# then Modbus reads.
+# ---------------------------------------------------------------------------
+# Read-only Modbus sensors. Register addresses come from the HA community
+# thread:
+# https://community.home-assistant.io/t/brink-flair-325-heat-recovery-unit-esphome-modbus-integration-5/423182
+# Without the UWA2-B card some of these may be unavailable or read 0 - if
+# you see a sensor stuck at zero, comment it out.
+# ---------------------------------------------------------------------------
+sensor:
+  - platform: wifi_signal
+    name: "WiFi RSSI"
+    update_interval: 60s
+
+  - platform: uptime
+    name: "Uptime"
+    update_interval: 60s
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Supply temperature (to house)"
+    id: supply_temp
+    address: 4036
+    register_type: holding
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: temperature
+    state_class: measurement
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Supply humidity"
+    id: supply_humidity
+    address: 4037
+    register_type: holding
+    value_type: S_WORD
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    device_class: humidity
+    state_class: measurement
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Exhaust temperature (to outside)"
+    id: exhaust_temp
+    address: 4046
+    register_type: holding
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: temperature
+    state_class: measurement
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Exhaust humidity"
+    id: exhaust_humidity
+    address: 4047
+    register_type: holding
+    value_type: S_WORD
+    unit_of_measurement: "%"
+    accuracy_decimals: 0
+    device_class: humidity
+    state_class: measurement
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Outdoor temperature (intake)"
+    id: outdoor_temp
+    address: 4081
+    register_type: holding
+    value_type: S_WORD
+    unit_of_measurement: "°C"
+    accuracy_decimals: 1
+    device_class: temperature
+    state_class: measurement
+    filters:
+      - multiply: 0.1
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Supply airflow (actual)"
+    id: supply_airflow
+    address: 4032
+    register_type: holding
+    value_type: S_WORD
+    unit_of_measurement: "m³/h"
+    accuracy_decimals: 0
+    state_class: measurement
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Exhaust airflow (actual)"
+    id: exhaust_airflow
+    address: 4042
+    register_type: holding
+    value_type: S_WORD
+    unit_of_measurement: "m³/h"
+    accuracy_decimals: 0
+    state_class: measurement
+
+  # Raw enum values - mapped to text by the template text_sensors above.
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Bypass state (raw)"
+    id: bypass_state_raw
+    address: 4050
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Unit mode (raw)"
+    id: unit_mode_raw
+    address: 4020
+    register_type: holding
+    value_type: S_WORD
+    internal: true
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Filter status (raw)"
+    id: filter_status_raw
+    address: 4100
+    register_type: holding
+    value_type: S_WORD
+
+# ---------------------------------------------------------------------------
+# Writable controls
+#
+# WARNING: writing to a register that is not supported on a unit without
+# the UWA2-B expansion card may put the unit into an error state. Test one
+# control at a time and confirm the unit reacts before adding more.
+#
+# Also note from the thread: when the bypass override is active, the unit
+# may ignore flow commands - test bypass first.
+# ---------------------------------------------------------------------------
+number:
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Ventilation step"
+    id: ventilation_step
+    address: 8001
+    value_type: S_WORD
+    register_type: holding
+    min_value: 0
+    max_value: 3
+    step: 1
+    mode: slider
+    icon: mdi:fan
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Flow setpoint"
+    id: flow_setpoint
+    address: 8002
+    value_type: S_WORD
+    register_type: holding
+    min_value: 0
+    max_value: 280
+    step: 5
+    unit_of_measurement: "m³/h"
+    mode: box
+    icon: mdi:fan
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Flow level 1"
+    id: flow_level_1
+    address: 6001
+    value_type: S_WORD
+    register_type: holding
+    min_value: 50
+    max_value: 325
+    step: 5
+    unit_of_measurement: "m³/h"
+    mode: box
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Flow level 2"
+    id: flow_level_2
+    address: 6002
+    value_type: S_WORD
+    register_type: holding
+    min_value: 50
+    max_value: 325
+    step: 5
+    unit_of_measurement: "m³/h"
+    mode: box
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Flow level 3"
+    id: flow_level_3
+    address: 6003
+    value_type: S_WORD
+    register_type: holding
+    min_value: 50
+    max_value: 325
+    step: 5
+    unit_of_measurement: "m³/h"
+    mode: box
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Inflow imbalance"
+    id: inflow_imbalance
+    address: 6035
+    value_type: S_WORD
+    register_type: holding
+    min_value: -15
+    max_value: 15
+    step: 1
+    unit_of_measurement: "%"
+    mode: slider
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Outflow imbalance"
+    id: outflow_imbalance
+    address: 6036
+    value_type: S_WORD
+    register_type: holding
+    min_value: -15
+    max_value: 15
+    step: 1
+    unit_of_measurement: "%"
+    mode: slider
+
+select:
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Modbus control mode"
+    id: modbus_mode
+    address: 8000
+    value_type: U_WORD
+    register_type: holding
+    optionsmap:
+      "LCD (manual)": 0
+      "Step": 1
+      "Flow": 2
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Bypass mode"
+    id: bypass_mode
+    address: 6100
+    value_type: U_WORD
+    register_type: holding
+    optionsmap:
+      "Auto": 0
+      "Closed": 1
+      "Open": 2
+
+switch:
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Bypass boost"
+    id: bypass_boost
+    address: 6104
+    register_type: holding
+    bitmask: 1

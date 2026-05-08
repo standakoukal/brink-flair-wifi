@@ -9,19 +9,39 @@ WiFi interface for the **Brink Flair 325** heat-recovery ventilation unit, built
 - DC-DC step-down 5–30 V → 5 V / 3 A (non-isolated)
 - Powered from the unit's 24 V output
 
-See [docs/wiring.md](docs/wiring.md) for the full wiring diagram and pin map.
+See [docs/wiring.md](docs/wiring.md) for the full wiring diagram and pin map, and [docs/registers.md](docs/registers.md) for the Modbus register reference.
 
 ## Project status
 
-🚧 Early development — wiring designed, firmware in progress.
+🚧 Early development — wiring designed, firmware drafted, awaiting first hardware bring-up.
 
 - [x] Source review
 - [x] Wiring diagram
-- [ ] ESPHome skeleton (UART + Modbus controller)
-- [ ] Read-only sensors (temperatures, airflows, bypass state)
-- [ ] Control entities (ventilation step, bypass mode)
-- [ ] Validate Modbus registers on the actual unit (Modbus enabled without UWA2-B card)
+- [x] ESPHome configuration with all known registers from the community thread
+- [ ] Bring-up: flash over USB and confirm Modbus reads
+- [ ] Validate which registers actually work on a unit without the UWA2-B card
+- [ ] Confirm writes (start with `Ventilation step` after setting `Modbus control mode = Step`)
 - [ ] OTA update workflow
+
+## ESPHome configuration
+
+The ESPHome YAML lives at [esphome/brink-flair-325.yaml](esphome/brink-flair-325.yaml). The configuration uses **dashboard secrets**, so the following keys must exist in the dashboard's shared `secrets.yaml`:
+
+| Key | Purpose |
+|---|---|
+| `wifi_ssid` | WiFi network SSID |
+| `wifi_password` | WiFi password |
+| `ap_password` | Fallback hotspot password (`brink-flair-325 fallback`) |
+| `api_key` | Home Assistant native-API encryption key (32-byte base64) |
+| `ota_password` | OTA update password |
+
+Generate the `api_key` either in the dashboard UI (it offers a button) or with `openssl rand -base64 32`.
+
+### First flash
+
+1. Connect the XIAO to the PC over USB-C with the unit **disconnected**.
+2. In the ESPHome dashboard, click *Install → Plug into this computer* and pick the XIAO's COM port.
+3. Once Online, disconnect USB and power the board from the unit's 24 V via the step-down. Subsequent updates can go OTA.
 
 ## References
 
