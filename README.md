@@ -9,7 +9,7 @@ WiFi interface for the **Brink Flair 325** heat-recovery ventilation unit, built
 - DC-DC step-down 5–30 V → 5 V / 3 A (non-isolated)
 - Powered from the unit's 24 V output
 
-See [docs/wiring.md](docs/wiring.md) for the full wiring diagram and pin map, and [docs/registers.md](docs/registers.md) for the Modbus register reference.
+See [docs/wiring.md](docs/wiring.md) for the full wiring diagram and pin map, and [docs/registers.md](docs/registers.md) for the Modbus register reference. A 3D-printable enclosure source lives in [mechanical/](mechanical/).
 
 ## Project status
 
