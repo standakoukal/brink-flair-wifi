@@ -129,8 +129,13 @@ text_sensor:
 # Read-only Modbus sensors. Register addresses come from the HA community
 # thread:
 # https://community.home-assistant.io/t/brink-flair-325-heat-recovery-unit-esphome-modbus-integration-5/423182
-# Without the UWA2-B card some of these may be unavailable or read 0 - if
-# you see a sensor stuck at zero, comment it out.
+#
+# All 4xxx status registers use Read Input Register (FC 0x04, ESPHome
+# register_type: read) instead of Read Holding (FC 0x03). On a Brink
+# without the UWA2-B card the holding-table entries return Modbus
+# exception 2 (ILLEGAL_DATA_ADDRESS) for these addresses, but they are
+# accessible via the input-register table. The 6xxx/8xxx control
+# registers below are still proper holding registers (read/write).
 # ---------------------------------------------------------------------------
 sensor:
   - platform: wifi_signal
@@ -146,7 +151,7 @@ sensor:
     name: "Supply temperature (to house)"
     id: supply_temp
     address: 4036
-    register_type: holding
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 1
@@ -160,7 +165,7 @@ sensor:
     name: "Supply humidity"
     id: supply_humidity
     address: 4037
-    register_type: holding
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "%"
     accuracy_decimals: 0
@@ -172,7 +177,7 @@ sensor:
     name: "Exhaust temperature (to outside)"
     id: exhaust_temp
     address: 4046
-    register_type: holding
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 1
@@ -186,7 +191,7 @@ sensor:
     name: "Exhaust humidity"
     id: exhaust_humidity
     address: 4047
-    register_type: holding
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "%"
     accuracy_decimals: 0
@@ -198,7 +203,7 @@ sensor:
     name: "Outdoor temperature (intake)"
     id: outdoor_temp
     address: 4081
-    register_type: holding
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "°C"
     accuracy_decimals: 1
@@ -212,7 +217,7 @@ sensor:
     name: "Supply airflow (actual)"
     id: supply_airflow
     address: 4032
-    register_type: holding
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "m³/h"
     accuracy_decimals: 0
@@ -223,7 +228,7 @@ sensor:
     name: "Exhaust airflow (actual)"
     id: exhaust_airflow
     address: 4042
-    register_type: holding
+    register_type: read
     value_type: S_WORD
     unit_of_measurement: "m³/h"
     accuracy_decimals: 0
@@ -235,7 +240,7 @@ sensor:
     name: "Bypass state (raw)"
     id: bypass_state_raw
     address: 4050
-    register_type: holding
+    register_type: read
     value_type: S_WORD
     internal: true
 
@@ -244,7 +249,7 @@ sensor:
     name: "Unit mode (raw)"
     id: unit_mode_raw
     address: 4020
-    register_type: holding
+    register_type: read
     value_type: S_WORD
     internal: true
 
@@ -253,7 +258,7 @@ sensor:
     name: "Filter status (raw)"
     id: filter_status_raw
     address: 4100
-    register_type: holding
+    register_type: read
     value_type: S_WORD
 
 # ---------------------------------------------------------------------------

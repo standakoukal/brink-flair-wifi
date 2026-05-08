@@ -38,8 +38,26 @@ The thread notes there is no extract-air sensor between house and unit on this m
 
 ## Validation log
 
-Track which registers actually work on this specific unit (without UWA2-B) here as the project progresses:
+Track which registers actually work on this specific unit (Brink Flair 325 with Modbus enabled in the menu, **without** the UWA2-B card).
 
-| Date | Register | Read OK | Write OK | Notes |
-|---|---|---|---|---|
-| _TBD_ | 4036 | ? | – | first power-on test |
+| Date | Register | FC | Read OK | Write OK | Notes |
+|---|---|---|---|---|---|
+| 2026-05-08 | 6001 Flow level 1 | 0x03 | ✓ (100 m³/h) | _untested_ | |
+| 2026-05-08 | 6002 Flow level 2 | 0x03 | ✓ (150 m³/h) | _untested_ | |
+| 2026-05-08 | 6003 Flow level 3 | 0x03 | ✓ (250 m³/h) | _untested_ | |
+| 2026-05-08 | 6035 Inflow imbalance | 0x03 | ✓ (0 %) | _untested_ | |
+| 2026-05-08 | 6036 Outflow imbalance | 0x03 | ✓ (0 %) | _untested_ | |
+| 2026-05-08 | 6100 Bypass mode | 0x03 | ✓ (Auto) | _untested_ | |
+| 2026-05-08 | 8000 Modbus control mode | 0x03 | ✓ (Step) | _untested_ | |
+| 2026-05-08 | 8001 Ventilation step | 0x03 | ✓ (0) | _untested_ | |
+| 2026-05-08 | 8002 Flow setpoint | 0x03 | ✓ (0) | _untested_ | |
+| 2026-05-08 | 4020 Unit mode | 0x03 | ✗ (exception 2 ILLEGAL_DATA_ADDRESS) | – | retry with FC 0x04 |
+| 2026-05-08 | 4032 Supply airflow | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
+| 2026-05-08 | 4036 Supply temp | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
+| 2026-05-08 | 4042 Exhaust airflow | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
+| 2026-05-08 | 4046 Exhaust temp | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
+| 2026-05-08 | 4050 Bypass state | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
+| 2026-05-08 | 4081 Outdoor temp | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
+| 2026-05-08 | 4100 Filter status | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
+
+**Pattern:** all 4xxx status registers fail with FC 0x03 on this unit; all 6xxx/8xxx control registers succeed. Likely the 4xxx values are exposed through the input-register table (FC 0x04) instead, since the holding-table entries get exposed by the UWA2-B card we don't have. The next firmware build switches the 4xxx sensors to `register_type: read` to test that hypothesis.
