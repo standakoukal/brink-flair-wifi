@@ -111,6 +111,18 @@ text_sensor:
       }
     update_interval: 30s
 
+  # Filter status - simple binary per the UWA2-B docs (0 = clean,
+  # 1 = dirty).
+  - platform: template
+    name: "Filter status"
+    id: filter_status_text
+    icon: mdi:air-filter
+    lambda: |-
+      auto raw = id(filter_status_raw).state;
+      if (isnan(raw)) return {"Unknown"};
+      return (int) raw == 0 ? std::string("Clean") : std::string("Dirty");
+    update_interval: 60s
+
   # Unit operating mode - 15-state enum from the Brink UWA2-B Modbus
   # documentation. Value 12 ("Auto Modbus") is the steady state while
   # this ESP drives the unit through registers 8000-8002.
@@ -236,7 +248,7 @@ sensor:
     id: supply_airflow
     address: 4032
     register_type: read
-    value_type: S_WORD
+    value_type: U_WORD
     unit_of_measurement: "m³/h"
     accuracy_decimals: 0
     state_class: measurement
@@ -247,7 +259,7 @@ sensor:
     id: exhaust_airflow
     address: 4042
     register_type: read
-    value_type: S_WORD
+    value_type: U_WORD
     unit_of_measurement: "m³/h"
     accuracy_decimals: 0
     state_class: measurement
@@ -277,7 +289,8 @@ sensor:
     id: filter_status_raw
     address: 4100
     register_type: read
-    value_type: S_WORD
+    value_type: U_WORD
+    internal: true
 
 # ---------------------------------------------------------------------------
 # Writable controls
@@ -325,12 +338,29 @@ number:
     mode: box
     icon: mdi:fan
 
+  # Flow preset 0 = Holiday step, paired with 8001 = 0. Confirmed in
+  # the official UWA2-B/UWA2-E installation regulations (page 11).
+  # Default is appliance-dependent; on the Flair 325 it is around the
+  # minimum supported flow.
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Flow level 0 (Holiday)"
+    id: flow_level_0
+    address: 6000
+    value_type: U_WORD
+    register_type: holding
+    min_value: 0
+    max_value: 325
+    step: 5
+    unit_of_measurement: "m³/h"
+    mode: box
+
   - platform: modbus_controller
     modbus_controller_id: brink
     name: "Flow level 1"
     id: flow_level_1
     address: 6001
-    value_type: S_WORD
+    value_type: U_WORD
     register_type: holding
     min_value: 50
     max_value: 325
@@ -343,7 +373,7 @@ number:
     name: "Flow level 2"
     id: flow_level_2
     address: 6002
-    value_type: S_WORD
+    value_type: U_WORD
     register_type: holding
     min_value: 50
     max_value: 325
@@ -356,7 +386,7 @@ number:
     name: "Flow level 3"
     id: flow_level_3
     address: 6003
-    value_type: S_WORD
+    value_type: U_WORD
     register_type: holding
     min_value: 50
     max_value: 325
@@ -364,6 +394,15 @@ number:
     unit_of_measurement: "m³/h"
     mode: box
 
+  # WARNING: 6035 and 6036 conflict between the HA community thread
+  # (which calls them inflow/outflow imbalance, range -15..+15 %) and
+  # the official UWA2-B docs (which call 6035 "Flow type" 0/1/2 and
+  # 6036 "Switch default position" 0..3). On this Flair 325 both
+  # registers read 0 idle, so we cannot tell from observation alone
+  # which mapping applies. Keeping the community names for now. DO NOT
+  # move the slider unless you have verified what the register really
+  # does on your hardware - writing -15 to a register that expects 0..2
+  # may push the unit into an error state.
   - platform: modbus_controller
     modbus_controller_id: brink
     name: "Inflow imbalance"
