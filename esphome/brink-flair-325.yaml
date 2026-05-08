@@ -279,29 +279,6 @@ sensor:
     register_type: read
     value_type: S_WORD
 
-  # 8xxx control registers exposed read-only on the Flair 325 without
-  # UWA2-B (writes are silently ignored by the unit). See the comment
-  # in the `number:` section below.
-  - platform: modbus_controller
-    modbus_controller_id: brink
-    name: "Ventilation step (current)"
-    id: ventilation_step
-    address: 8001
-    register_type: holding
-    value_type: S_WORD
-    icon: mdi:fan
-
-  - platform: modbus_controller
-    modbus_controller_id: brink
-    name: "Flow setpoint (current)"
-    id: flow_setpoint
-    address: 8002
-    register_type: holding
-    value_type: S_WORD
-    unit_of_measurement: "m³/h"
-    accuracy_decimals: 0
-    icon: mdi:fan
-
 # ---------------------------------------------------------------------------
 # Writable controls
 #
@@ -313,40 +290,40 @@ sensor:
 # may ignore flow commands - test bypass first.
 # ---------------------------------------------------------------------------
 number:
-  # NOTE: Ventilation step (8001) and Flow setpoint (8002) are NOT
-  # exposed as `number` (writable) entities here. On the Brink Flair
-  # 325 *without* the UWA2-B Modbus card the unit silently ignores
-  # writes to these registers - the value is acknowledged on the bus,
-  # but the front display never updates and the fans don't change
-  # speed. Confirmed empirically: writing 8001 = 2 makes Unit mode drop
-  # to "Manual" (4) without altering the airflow.
-  #
-  # They are exposed below as read-only sensors instead, so HA can show
-  # the current step/flow that the unit *thinks* it has. If you ever
-  # install a UWA2-B card, swap the `sensor:` entries for the original
-  # `number:` entries (slider/box, min/max/step) and restore writability.
-  #
-  # Flow level setpoints (6001-6003) and Bypass settings DO work via
-  # Modbus - those stay writable below.
-
-  # Flow level 0 corresponds to step 0 (Holiday) on the unit. The HA
-  # community thread doesn't mention 6000 explicitly, but Brink's step
-  # numbering (0 Holiday / 1 Low / 2 Normal / 3 High) suggests the
-  # m^3/h setpoint for Holiday lives one register below the others.
-  # If the Flair 325 doesn't expose 6000 we'll see exception 2 in the
-  # logs and can comment this entry out.
+  # NOTE on Ventilation step (8001) and Flow setpoint (8002):
+  # On the Brink Flair 325 *without* a UWA2-B Modbus card, the unit
+  # acknowledges writes on the bus but does not act on them - the front
+  # display does not update, the fans don't move, and Unit mode (4020)
+  # falls back to "Manual" (4). With a UWA2-B card the same writes
+  # actually change ventilation (per the HA community thread). The
+  # entities are kept writable so the integration is correct on either
+  # hardware setup; only the runtime effect differs.
   - platform: modbus_controller
     modbus_controller_id: brink
-    name: "Flow level 0 (Holiday)"
-    id: flow_level_0
-    address: 6000
+    name: "Ventilation step"
+    id: ventilation_step
+    address: 8001
     value_type: S_WORD
     register_type: holding
     min_value: 0
-    max_value: 325
+    max_value: 3
+    step: 1
+    mode: slider
+    icon: mdi:fan
+
+  - platform: modbus_controller
+    modbus_controller_id: brink
+    name: "Flow setpoint"
+    id: flow_setpoint
+    address: 8002
+    value_type: S_WORD
+    register_type: holding
+    min_value: 0
+    max_value: 280
     step: 5
     unit_of_measurement: "m³/h"
     mode: box
+    icon: mdi:fan
 
   - platform: modbus_controller
     modbus_controller_id: brink

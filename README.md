@@ -19,9 +19,9 @@ See [docs/wiring.md](docs/wiring.md) for the wiring diagram and the corrected ES
 
 | Group | Count | What you get without UWA2-B |
 |---|---:|---|
-| Sensors (read-only) | 10 | supply / exhaust / outdoor temperature, supply / exhaust humidity, both airflows, filter status, current ventilation step + flow setpoint reported by the unit |
+| Sensors (read-only) | 8 | supply / exhaust / outdoor temperature, supply / exhaust humidity, both airflows, filter status |
 | Text sensors | 2 | bypass state (5-state enum), unit mode (15-state enum) |
-| Number controls | 5 | flow levels 1–3 (m³/h per step), in/out flow imbalance — these reparametrise the unit even without UWA2-B |
+| Number controls | 7 | ventilation step, flow setpoint, flow levels 1–3, in/out flow imbalance — *flow levels and imbalance work; ventilation step / flow setpoint are accepted on the bus but ignored by the unit until UWA2-B is installed* |
 | Select controls | 2 | Modbus control mode, bypass mode |
 | Switch controls | 1 | bypass boost |
 | Diagnostics | 4 | online status, WiFi RSSI, uptime, IP / SSID |

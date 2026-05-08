@@ -25,7 +25,6 @@ The thread notes there is no extract-air sensor between house and unit on this m
 
 | Address | Name | Type | Range | Notes |
 |--------:|---|---|---|---|
-| 6000 | Flow level 0 (Holiday) | S_WORD | 0–325 m³/h | Step 0 is "Holiday" mode. Pairs with `8001 = 0`. Address inferred from the symmetry with 6001/6002/6003 — verify against your unit. |
 | 6001 | Flow level 1 (Low) | S_WORD | 50–325 m³/h | Each level must be ≥ the previous one. |
 | 6002 | Flow level 2 (Normal) | S_WORD | 50–325 m³/h | Each level must be ≥ the previous one. |
 | 6003 | Flow level 3 (High) | S_WORD | 50–325 m³/h | Each level must be ≥ the previous one. |
@@ -34,8 +33,8 @@ The thread notes there is no extract-air sensor between house and unit on this m
 | 6100 | Bypass mode | U_WORD enum | 0 Auto / 1 Closed / 2 Open | When forced, may suppress flow commands. |
 | 6104 | Bypass boost | bit | 0/1 | Switch in HA. |
 | 8000 | Modbus control mode | U_WORD enum | 0 LCD / 1 Step / 2 Flow | All three values can be written (the bus accepts them), but **without a UWA2-B card, switching the mode does not actually hand control to Modbus** — Unit mode (4020) stays at `Manual` (4) regardless. |
-| 8001 | Ventilation step | S_WORD | 0–3 | 0 = Holiday, 1 = Low, 2 = Normal, 3 = High. **Effectively read-only without a UWA2-B card** — see "UWA2-B limitation" below. |
-| 8002 | Flow setpoint | S_WORD | 0–280 m³/h | **Effectively read-only without a UWA2-B card.** |
+| 8001 | Ventilation step | S_WORD | 0–3 | 0 = Holiday, 1 = Low, 2 = Normal, 3 = High. Writable on the bus; **without UWA2-B the unit ACKs the write but ignores it** (see UWA2-B limitation below). |
+| 8002 | Flow setpoint | S_WORD | 0–280 m³/h | Writable on the bus; **without UWA2-B the unit ACKs the write but ignores it** (see UWA2-B limitation below). |
 
 ## UWA2-B limitation (this unit)
 
@@ -54,7 +53,7 @@ What does **not** work:
 
 To get Modbus control of step/flow the UWA2-B (or UWA2-E) PCB needs to be installed in the unit. Without it the integration is read-only for ventilation.
 
-In this project the 8001 and 8002 registers are exposed as `sensor` (read-only) entities so HA can show the current state. If you install the card later, swap them back to `number` entities (the comment in the YAML's `number:` block describes how).
+The 8001 and 8002 registers stay exposed as `number` (writable) entities in this project — that's the correct ESPHome shape for a holding register, and it works directly if you ever install a UWA2-B card. On a bare Flair 325 the slider in HA simply doesn't move the fans.
 
 ## Validation log
 
