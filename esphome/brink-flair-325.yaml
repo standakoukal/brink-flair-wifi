@@ -358,7 +358,6 @@ select:
     id: modbus_mode
     address: 8000
     value_type: U_WORD
-    register_type: holding
     optionsmap:
       "LCD (manual)": 0
       "Step": 1
@@ -370,7 +369,6 @@ select:
     id: bypass_mode
     address: 6100
     value_type: U_WORD
-    register_type: holding
     optionsmap:
       "Auto": 0
       "Closed": 1
