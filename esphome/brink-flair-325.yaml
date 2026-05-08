@@ -325,12 +325,19 @@ number:
 
   - platform: modbus_controller
     modbus_controller_id: brink
+    # Per the UWA2-B docs the valid write range is "Typ HRA: 0;
+    # min. flow - max. flow". For the Flair 325 that is {0, 50..325}:
+    # 0 is the extra "off" value and 50 m^3/h is the unit's minimum
+    # flow. Values 1..49 return Modbus exception 3
+    # (ILLEGAL_DATA_VALUE), confirmed empirically. The slider here is
+    # capped at the regular 50..325 range; to actually stop the unit
+    # use Modbus control mode = LCD or 8010 standby instead.
     name: "Flow setpoint"
     id: flow_setpoint
     address: 8002
     value_type: S_WORD
     register_type: holding
-    min_value: 0
+    min_value: 50
     max_value: 325
     step: 5
     unit_of_measurement: "m³/h"

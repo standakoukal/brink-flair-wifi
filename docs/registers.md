@@ -53,7 +53,7 @@ The Flair 325 does **not** have a sensor for return air between the house and th
 |--------:|---|---|---|---|
 | 8000 | Modbus control mode | U_WORD enum | 0=off (LCD/manual) / 1=switch (Step) / 2=flow rate value (Flow) | Reading returns the **last accepted** value (per docs). On this Flair 325 without UWA2-B all three values are accepted on the bus but Unit mode (4020) stays at `Manual` (4) — see UWA2-B limitation below. |
 | 8001 | Ventilation step (request) | U_WORD enum | 0=Holiday / 1=Low / 2=Normal / 3=High | Active when 8000 = 1 (switch). Reading returns the last accepted request. |
-| 8002 | Flow setpoint (request) | U_WORD | 0–280 m³/h | Active when 8000 = 2 (flow rate value). |
+| 8002 | Flow setpoint (request) | U_WORD | `{0, min_flow..max_flow}` | Active when 8000 = 2. The docs note `Typ HRA: 0; min. flow - max. flow` — i.e. **0 is allowed as an "extra" off value**, then a contiguous range from the unit's minimum flow to its maximum. On the Flair 325 the range is `{0, 50..325}` m³/h; values 1–49 are rejected with Modbus exception 3 (ILLEGAL_DATA_VALUE), confirmed empirically. The YAML slider exposes only 50..325 to keep the UX clean. |
 | 8010 | Standby request | U_WORD | 0=No action / 1=Set to standby / 2=Resume | Read returns the actual standby status. |
 | 8011 | Filter / appliance reset | U_WORD | 0=No reset / 1=Reset filter warning / 1=Appliance reset | Self-clearing — once read the value resets to 0. Two separate registers per the docs (filter reset and appliance reset), exact address pair to verify. Not currently exposed in this project. |
 
