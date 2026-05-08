@@ -1,0 +1,21 @@
+# ESPHome
+.esphome/
+secrets.yaml
+*.bin
+
+# VS Code
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# Claude Code (local-only project config)
+.claude/
+
+# Python / build
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+desktop.ini
