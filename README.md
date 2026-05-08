@@ -9,7 +9,7 @@ WiFi bridge for the **Brink Flair 325** heat-recovery ventilation unit, built on
 - DC-DC step-down 5–30 V → 5 V / 3 A (non-isolated)
 - Powered from the unit's 24 V output
 
-See [docs/wiring.md](docs/wiring.md) for the wiring diagram and the corrected ESP32-C3 pin map, and [docs/registers.md](docs/registers.md) for the validated Modbus register reference with full enum decodings. A parametric 3D-printable enclosure source lives in [mechanical/](mechanical/).
+See [docs/wiring.md](docs/wiring.md) for the wiring diagram and the corrected ESP32-C3 pin map, and [docs/registers.md](docs/registers.md) for the validated Modbus register reference with full enum decodings.
 
 ## Project status
 
