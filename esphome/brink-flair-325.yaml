@@ -289,8 +289,7 @@ sensor:
     id: filter_status_raw
     address: 4100
     register_type: read
-    value_type: U_WORD
-    internal: true
+    value_type: S_WORD
 
 # ---------------------------------------------------------------------------
 # Writable controls
@@ -332,10 +331,10 @@ number:
     value_type: S_WORD
     register_type: holding
     min_value: 0
-    max_value: 280
+    max_value: 325
     step: 5
     unit_of_measurement: "m³/h"
-    mode: box
+    mode: slider
     icon: mdi:fan
 
   # Flow preset 0 = Holiday step, paired with 8001 = 0. Confirmed in
