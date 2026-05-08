@@ -59,7 +59,10 @@ uart:
   rx_pin: GPIO6
   baud_rate: 19200
   parity: NONE
-  stop_bits: 1
+  # Brink (and other Modbus RTU devices that don't use parity) requires
+  # 2 stop bits per the Modbus RTU spec; with stop_bits: 1 the unit
+  # silently drops every frame.
+  stop_bits: 2
   flow_control_pin:
     number: GPIO4
     inverted: false
