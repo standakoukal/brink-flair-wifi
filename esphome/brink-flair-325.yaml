@@ -92,16 +92,14 @@ text_sensor:
       name: "Connected SSID"
 
   # Bypass state - 5-state enum from the official Brink UWA2-B Modbus
-  # docs (mirrored in the TapHome integration). The HA community thread
-  # cites a 3-state mapping {Init/Open/Closed} which is incomplete for
-  # the Flair 325 - the unit reports separate transitional states.
+  # docs. The HA community thread's 3-state {Init/Open/Closed} mapping
+  # is incomplete; the Flair 325 also reports the transitional states.
   - platform: template
     name: "Bypass state"
     id: bypass_state_text
     icon: mdi:valve
     lambda: |-
       auto raw = id(bypass_state_raw).state;
-      ESP_LOGI("brink", "Bypass state raw value: %.0f", raw);
       if (isnan(raw)) return {"Unknown"};
       switch ((int) raw) {
         case 0:  return {"Initialize"};
@@ -109,20 +107,19 @@ text_sensor:
         case 2:  return {"Closing"};
         case 3:  return {"Open"};
         case 4:  return {"Closed"};
-        default: return {std::string("Unknown(") + to_string((int) raw) + ")"};
+        default: return {"Unknown"};
       }
     update_interval: 30s
 
   # Unit operating mode - 15-state enum from the Brink UWA2-B Modbus
-  # documentation. Value 12 ("Auto Modbus") is the expected steady state
-  # when this ESP is driving the unit through registers 8000-8002.
+  # documentation. Value 12 ("Auto Modbus") is the steady state while
+  # this ESP drives the unit through registers 8000-8002.
   - platform: template
     name: "Unit mode"
     id: unit_mode_text
     icon: mdi:state-machine
     lambda: |-
       auto raw = id(unit_mode_raw).state;
-      ESP_LOGI("brink", "Unit mode raw value: %.0f", raw);
       if (isnan(raw)) return {"Unknown"};
       switch ((int) raw) {
         case 0:  return {"Standby"};
@@ -140,7 +137,7 @@ text_sensor:
         case 12: return {"Auto Modbus"};
         case 13: return {"Auto Portal"};
         case 14: return {"Auto Local"};
-        default: return {std::string("Unknown(") + to_string((int) raw) + ")"};
+        default: return {"Unknown"};
       }
     update_interval: 30s
 
