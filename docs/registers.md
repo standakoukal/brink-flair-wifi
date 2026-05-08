@@ -32,9 +32,28 @@ The thread notes there is no extract-air sensor between house and unit on this m
 | 6036 | Outflow imbalance | S_WORD | -15…+15 % | |
 | 6100 | Bypass mode | U_WORD enum | 0 Auto / 1 Closed / 2 Open | When forced, may suppress flow commands. |
 | 6104 | Bypass boost | bit | 0/1 | Switch in HA. |
-| 8000 | Modbus control mode | U_WORD enum | 0 LCD / 1 Step / **2 Flow not accepted** | Must be 1 (Step) for 8001 writes to take effect. Writing 2 (Flow) on the Flair 325 without UWA2-B returns exception 3 — Flow mode is not exposed. ESPHome interval auto-pins this to 1 (Step) whenever the unit drops out of Auto Modbus. |
-| 8001 | Ventilation step | S_WORD | 0–3 | 0 = Holiday, 1 = Low, 2 = Normal, 3 = High. Writes accepted **only when 8000 = Step**. After a successful write the unit silently switches Unit mode (4020) from `Auto Modbus` (12) to `Manual` (4), which makes subsequent writes a no-op. Workaround: an `interval: 60s` block in the YAML re-asserts 8000 = Step whenever Unit mode drifts away from 12. |
-| 8002 | Flow setpoint | S_WORD | 0–280 m³/h | Effectively **read-only on Flair 325 without UWA2-B** — writing 8000 = 2 (Flow) returns exception 3, so the register cannot be activated. Kept in the entity list for visibility. |
+| 8000 | Modbus control mode | U_WORD enum | 0 LCD / 1 Step / 2 Flow | All three values can be written (the bus accepts them), but **without a UWA2-B card, switching the mode does not actually hand control to Modbus** — Unit mode (4020) stays at `Manual` (4) regardless. |
+| 8001 | Ventilation step | S_WORD | 0–3 | 0 = Holiday, 1 = Low, 2 = Normal, 3 = High. **Effectively read-only without a UWA2-B card** — see "UWA2-B limitation" below. |
+| 8002 | Flow setpoint | S_WORD | 0–280 m³/h | **Effectively read-only without a UWA2-B card.** |
+
+## UWA2-B limitation (this unit)
+
+This Flair 325 has **Modbus enabled in the menu but no UWA2-B expansion card**. Hardware-confirmed limitation: the unit accepts Modbus reads / parametrisation writes, but **does not honour Modbus-driven ventilation commands**.
+
+What works:
+- All status sensor reads (4xxx via FC 0x04)
+- Flow level setpoints (6001–6003) — change m³/h-per-step
+- Bypass mode and Bypass boost (6100, 6104)
+- In/out flow imbalance (6035, 6036)
+
+What does **not** work:
+- `8001` Ventilation step write — value is acknowledged on the wire, the unit does not change Step on its display, and the fans don't move
+- `8002` Flow setpoint write — same story
+- `8000 = 2` Flow mode and `8000 = 1` Step mode — bus accepts the write, but Unit mode (4020) stays at `Manual` (4); the unit never actually enters Auto Modbus state
+
+To get Modbus control of step/flow the UWA2-B (or UWA2-E) PCB needs to be installed in the unit. Without it the integration is read-only for ventilation.
+
+In this project the 8001 and 8002 registers are exposed as `sensor` (read-only) entities so HA can show the current state. If you install the card later, swap them back to `number` entities (the comment in the YAML's `number:` block describes how).
 
 ## Validation log
 

@@ -13,13 +13,15 @@ See [docs/wiring.md](docs/wiring.md) for the wiring diagram and the corrected ES
 
 ## Project status
 
-✅ **Working** — all 20 entities (sensors + controls) read and write correctly.
+✅ **Working as a monitoring + parametrisation bridge.**
 
-| Group | Count | Examples |
+⚠️ **Direct fan-speed control over Modbus requires the Brink UWA2-B card** (not installed on this test unit). Without it the unit ACKs writes to `Ventilation step` / `Flow setpoint` but ignores them — the fans only respond to the front display. With UWA2-B the integration becomes fully bidirectional. See [docs/registers.md](docs/registers.md) for the empirical write-test log.
+
+| Group | Count | What you get without UWA2-B |
 |---|---:|---|
-| Sensors | 8 | supply / exhaust / outdoor temperature, supply / exhaust humidity, both airflows, filter status |
-| Text sensors | 2 | bypass state (`Open` / `Closed` / transitional), unit mode (`Auto Modbus` etc.) |
-| Number controls | 7 | ventilation step, flow setpoint, flow levels 1–3, in/out flow imbalance |
+| Sensors (read-only) | 10 | supply / exhaust / outdoor temperature, supply / exhaust humidity, both airflows, filter status, current ventilation step + flow setpoint reported by the unit |
+| Text sensors | 2 | bypass state (5-state enum), unit mode (15-state enum) |
+| Number controls | 5 | flow levels 1–3 (m³/h per step), in/out flow imbalance — these reparametrise the unit even without UWA2-B |
 | Select controls | 2 | Modbus control mode, bypass mode |
 | Switch controls | 1 | bypass boost |
 | Diagnostics | 4 | online status, WiFi RSSI, uptime, IP / SSID |
