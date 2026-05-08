@@ -55,11 +55,13 @@ These pins are **physically routed on the expansion PCB**; you cannot reassign t
 
 | Function | XIAO label | ESP32C3 GPIO | ESPHome YAML key |
 |---|---|---|---|
-| RS485 RX (from driver) | D4 | **GPIO6** | `uart.rx_pin: GPIO6` |
-| RS485 TX (to driver) | D5 | **GPIO7** | `uart.tx_pin: GPIO7` |
+| ESP TX → DI of TP8485E | D4 | **GPIO6** | `uart.tx_pin: GPIO6` |
+| ESP RX ← RO of TP8485E | D5 | **GPIO7** | `uart.rx_pin: GPIO7` |
 | DE/RE flow control | D2 | **GPIO4** | `uart.flow_control_pin: GPIO4` |
 
-> ⚠️ **Heads-up:** The HA community thread mentions GPIO 16/17 — that applies to the classic ESP32 only, **not to the ESP32C3**. The firmware will compile and flash without errors, but Modbus will not communicate.
+> ⚠️ **Heads-up #1:** The HA community thread mentions GPIO 16/17 — that applies to the classic ESP32 only, **not to the ESP32C3**.
+>
+> ⚠️ **Heads-up #2:** The Seeed wiki labels D4 as "RX" and D5 as "TX", but those labels refer to the **chip-side** pins (RO/DI on the TP8485E). From the **ESP side** the roles are flipped: D4/GPIO6 is the ESP's TX line, D5/GPIO7 is the ESP's RX line. Wired the other way, the firmware compiles fine and the Modbus stack runs, but no byte ever leaves the bus and every request times out (`Stop waiting for response from 1 …ms after last send`). Source: [Seeed wiki discussion, Elu43, Jul 2025](https://wiki.seeedstudio.com/XIAO-RS485-Expansion-Board/).
 
 ### 4. Switches and jumpers on the expansion board
 
@@ -94,8 +96,8 @@ These pins are **physically routed on the expansion PCB**; you cannot reassign t
                             ─────────────►│  A   ●                   │    │
                                         │   │                          │    │
                                         │   │  XIAO ESP32C3 socket:    │    │
-                                        │   │   D4=GPIO6  ◄── RX       │    │
-                                        │   │   D5=GPIO7  ──► TX       │    │
+                                        │   │   D4=GPIO6  ──► TX       │    │
+                                        │   │   D5=GPIO7  ◄── RX       │    │
                                         │   │   D2=GPIO4  ──► DE/RE    │    │
                                         │   │   5V pin    ◄── 5V DC    │    │
                                         │   │                          │    │

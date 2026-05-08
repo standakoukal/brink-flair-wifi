@@ -4,11 +4,15 @@
 # Bus:      Modbus RTU @ 19200 8N1, slave address 0x01
 # Power:    24 V from the unit -> step-down 5 V/3 A -> XIAO 5V pin
 #
-# IMPORTANT pin map (ESP32C3 on the expansion board, NOT the values from
-# the Home Assistant community thread which target a classic ESP32):
-#   D4 = GPIO6  -> RS485 RX
-#   D5 = GPIO7  -> RS485 TX
+# IMPORTANT pin map (ESP32C3 on the expansion board):
+#   D4 = GPIO6  -> ESP TX (drives DI on the TP8485E)
+#   D5 = GPIO7  -> ESP RX (reads RO from the TP8485E)
 #   D2 = GPIO4  -> RS485 DE/RE (driver enable, HIGH = TX, LOW = RX)
+#
+# The Seeed wiki labels D4/D5 as "RX/TX" meaning the chip pins, NOT the
+# ESP side - the inputs are flipped from the table. Confirmed by the
+# community: see https://wiki.seeedstudio.com/XIAO-RS485-Expansion-Board/
+# discussion (user Elu43, Jul 2025).
 #
 # Secrets are pulled from the ESPHome dashboard's shared secrets.yaml.
 # Required keys:
@@ -55,8 +59,8 @@ captive_portal:
 # RS485 UART. flow_control_pin drives DE/RE on the expansion board.
 uart:
   id: mod_bus
-  tx_pin: GPIO7
-  rx_pin: GPIO6
+  tx_pin: GPIO6   # D4 -> DI of TP8485E
+  rx_pin: GPIO7   # D5 <- RO of TP8485E
   baud_rate: 19200
   parity: NONE
   # Brink (and other Modbus RTU devices that don't use parity) requires
