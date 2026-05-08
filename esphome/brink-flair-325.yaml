@@ -92,16 +92,21 @@ text_sensor:
       name: "Connected SSID"
 
   # Bypass state translated to a human-readable string.
+  # Default case prints the raw integer so unmapped values show up clearly
+  # in HA and tell us what to add to the switch.
   - platform: template
     name: "Bypass state"
     id: bypass_state_text
     icon: mdi:valve
     lambda: |-
-      switch ((int) id(bypass_state_raw).state) {
+      auto raw = id(bypass_state_raw).state;
+      ESP_LOGI("brink", "Bypass state raw value: %.0f", raw);
+      if (isnan(raw)) return {"Unknown"};
+      switch ((int) raw) {
         case 0:  return {"Init"};
         case 1:  return {"Open"};
         case 2:  return {"Closed"};
-        default: return {"Unknown"};
+        default: return {std::string("Unknown(") + to_string((int) raw) + ")"};
       }
     update_interval: 30s
 
@@ -111,12 +116,15 @@ text_sensor:
     id: unit_mode_text
     icon: mdi:state-machine
     lambda: |-
-      switch ((int) id(unit_mode_raw).state) {
+      auto raw = id(unit_mode_raw).state;
+      ESP_LOGI("brink", "Unit mode raw value: %.0f", raw);
+      if (isnan(raw)) return {"Unknown"};
+      switch ((int) raw) {
         case 0:  return {"Standby"};
         case 1:  return {"Normal"};
         case 2:  return {"Bootloader"};
         case 3:  return {"Error"};
-        default: return {"Unknown"};
+        default: return {std::string("Unknown(") + to_string((int) raw) + ")"};
       }
     update_interval: 30s
 

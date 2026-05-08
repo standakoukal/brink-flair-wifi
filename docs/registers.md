@@ -51,13 +51,22 @@ Track which registers actually work on this specific unit (Brink Flair 325 with 
 | 2026-05-08 | 8000 Modbus control mode | 0x03 | ✓ (Step) | _untested_ | |
 | 2026-05-08 | 8001 Ventilation step | 0x03 | ✓ (0) | _untested_ | |
 | 2026-05-08 | 8002 Flow setpoint | 0x03 | ✓ (0) | _untested_ | |
-| 2026-05-08 | 4020 Unit mode | 0x03 | ✗ (exception 2 ILLEGAL_DATA_ADDRESS) | – | retry with FC 0x04 |
-| 2026-05-08 | 4032 Supply airflow | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
-| 2026-05-08 | 4036 Supply temp | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
-| 2026-05-08 | 4042 Exhaust airflow | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
-| 2026-05-08 | 4046 Exhaust temp | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
-| 2026-05-08 | 4050 Bypass state | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
-| 2026-05-08 | 4081 Outdoor temp | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
-| 2026-05-08 | 4100 Filter status | 0x03 | ✗ (exception 2) | – | retry with FC 0x04 |
+| 2026-05-08 | 4020 Unit mode | 0x03 | ✗ (exception 2 ILLEGAL_DATA_ADDRESS) | – | also FC 0x04 returns a value but it is not in the {0,1,2,3} mapping from the HA thread — needs decoding |
+| 2026-05-08 | 4020 Unit mode | 0x04 | ✓ (raw value mapping unknown) | – | enum mapping for Brink Flair 325 differs from the thread |
+| 2026-05-08 | 4032 Supply airflow | 0x04 | ✓ (0 m³/h, idle) | – | |
+| 2026-05-08 | 4036 Supply temp | 0x04 | ✓ (25.5 °C) | – | |
+| 2026-05-08 | 4037 Supply humidity | 0x04 | ✓ (41 %) | – | |
+| 2026-05-08 | 4042 Exhaust airflow | 0x04 | ✓ (0 m³/h, idle) | – | |
+| 2026-05-08 | 4046 Exhaust temp | 0x04 | ✓ (22.9 °C) | – | |
+| 2026-05-08 | 4047 Exhaust humidity | 0x04 | ✓ (37 %) | – | |
+| 2026-05-08 | 4050 Bypass state | 0x04 | ✓ (raw value mapping unknown) | – | enum mapping needs decoding |
+| 2026-05-08 | 4081 Outdoor temp | 0x04 | ✓ (20.7 °C) | – | |
+| 2026-05-08 | 4100 Filter status | 0x04 | ✓ (0, no service due) | – | |
 
-**Pattern:** all 4xxx status registers fail with FC 0x03 on this unit; all 6xxx/8xxx control registers succeed. Likely the 4xxx values are exposed through the input-register table (FC 0x04) instead, since the holding-table entries get exposed by the UWA2-B card we don't have. The next firmware build switches the 4xxx sensors to `register_type: read` to test that hypothesis.
+**Pattern confirmed:**
+- Control registers (6xxx, 8xxx) → FC 0x03 (Read Holding) ✓
+- Status registers (4xxx) → FC 0x04 (Read Input Register) ✓ on this unit even without the UWA2-B card
+
+The HA community thread implicitly assumed FC 0x03 for everything (which works only with the UWA2-B firmware). Without the card the same addresses are accessible, just through the input-register table.
+
+**Open question:** the enum mapping for 4020 Unit mode and 4050 Bypass state on the Flair 325 is *not* the {Standby/Bootloader/Error} / {Init/Open/Closed} mapping cited in the thread. The current firmware logs the raw integer at INFO level (`[I][brink] Bypass state raw value: N`); decode against the unit's actual state and update the lambda mapping in the next iteration.
