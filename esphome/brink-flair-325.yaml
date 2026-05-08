@@ -63,10 +63,7 @@ uart:
   rx_pin: GPIO7   # D5 <- RO of TP8485E
   baud_rate: 19200
   parity: NONE
-  # Brink (and other Modbus RTU devices that don't use parity) requires
-  # 2 stop bits per the Modbus RTU spec; with stop_bits: 1 the unit
-  # silently drops every frame.
-  stop_bits: 2
+  stop_bits: 1
   flow_control_pin:
     number: GPIO4
     inverted: false
