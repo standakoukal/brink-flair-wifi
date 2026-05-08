@@ -33,7 +33,7 @@ The thread notes there is no extract-air sensor between house and unit on this m
 | 6100 | Bypass mode | U_WORD enum | 0 Auto / 1 Closed / 2 Open | When forced, may suppress flow commands. |
 | 6104 | Bypass boost | bit | 0/1 | Switch in HA. |
 | 8000 | Modbus control mode | U_WORD enum | 0 LCD / 1 Step / 2 Flow | **Must be 1 or 2 for steps/flow writes to take effect.** |
-| 8001 | Ventilation step | S_WORD | 0–3 | Active when 8000 = Step. |
+| 8001 | Ventilation step | S_WORD | **1–3** | Active when 8000 = Step. Writing 0 returns Modbus exception 3 (ILLEGAL_DATA_VALUE) - the HA thread's "0–3" range is wrong for the Flair 325. To stop ventilation, switch 8000 to LCD or set 8002 to 0 with 8000 = Flow. |
 | 8002 | Flow setpoint | S_WORD | 0–280 m³/h | Active when 8000 = Flow. |
 
 ## Validation log
@@ -93,7 +93,9 @@ The HA community thread's 3-state bypass mapping and 4-state unit-mode mapping a
 | 13 | Auto Portal |
 | 14 | Auto Local |
 
-Observed on this unit while ESP drives 8001/8002: `12 = Auto Modbus` ✓
+Observed on this unit:
+- `12 = Auto Modbus` ✓ when ESP drives 8001/8002 (8000 = Step or Flow)
+- `4 = Manual` ✓ when 8000 = LCD and the unit is being driven from its own menu
 
 ### 4050 Bypass state
 
@@ -105,4 +107,6 @@ Observed on this unit while ESP drives 8001/8002: `12 = Auto Modbus` ✓
 | 3 | Open |
 | 4 | Closed |
 
-Observed on this unit (bypass mode = Auto, ambient ~21°C indoor warmer): `3 = Open` ✓ — confirmed against the unit's own LCD readout.
+Observed on this unit:
+- `3 = Open` ✓ — confirmed against the unit's LCD readout
+- `4 = Closed` ✓ — observed once the bypass closed during normal operation
