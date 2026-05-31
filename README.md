@@ -60,6 +60,19 @@ In the unit's menu set **Communication → Bus type → modbus → address `1` �
 2. In the ESPHome dashboard, click **Install → Plug into this computer** and pick the XIAO's COM port.
 3. After the device is **Online** in HA, disconnect USB and power the board from the unit's 24 V via the step-down. Further updates can go OTA.
 
+## Home Assistant automations
+
+Optional control logic that runs in Home Assistant on top of this integration
+lives in [homeassistant/](homeassistant/):
+
+- **CO2-based ventilation** — maps the worst (highest) CO2 across all room
+  sensors to a Flow-mode setpoint (8002).
+- **Night/morning free cooling** — opens the bypass (6100) when the house
+  (unit exhaust temp) is warm and it is cooler outside.
+
+Shipped as a drop-in HA package with UI-tunable thresholds. See
+[homeassistant/README.md](homeassistant/README.md) for setup.
+
 ## References
 
 - [HA community thread — Brink Flair 325 ESPHome integration](https://community.home-assistant.io/t/brink-flair-325-heat-recovery-unit-esphome-modbus-integration-5/423182)

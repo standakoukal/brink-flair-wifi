@@ -1,0 +1,300 @@
+# =============================================================================
+# Brink Flair 325 — control automations (Home Assistant package)
+#
+# Two automations on top of the ESPHome Modbus integration:
+#   1. CO2-based ventilation  — drives Flow mode (reg 8002) from the WORST
+#      (highest) CO2 reading across all room sensors.
+#   2. Night/morning free cooling — opens the bypass (reg 6100) when the
+#      WARMEST room is hot and it is cooler outside, flushing the house with
+#      cool night/morning air.
+#
+# Multi-room "worst case" strategy:
+#   * ventilation follows max(CO2) over all rooms  -> nobody is left stuffy
+#   * cooling follows max(room temperature)        -> cools while any room is hot
+#
+# All tunable thresholds are input_* helpers, editable from the HA UI.
+#
+# Install: enable packages once in configuration.yaml
+#     homeassistant:
+#       packages: !include_dir_named packages
+# then drop this file in <config>/packages/ and restart HA.
+# =============================================================================
+
+# ---------------------------------------------------------------------------
+# Tunable helpers (with sensible initial values)
+# ---------------------------------------------------------------------------
+input_boolean:
+  brink_co2_control_enable:
+    name: Brink CO2 ventilation enabled
+    icon: mdi:molecule-co2
+    initial: true
+  brink_bypass_cooling_enable:
+    name: Brink night cooling enabled
+    icon: mdi:weather-night
+    initial: true
+
+input_number:
+  # --- CO2 -> flow mapping (linear) ---
+  brink_co2_min_ppm:
+    name: Brink CO2 min (flow = min here)
+    min: 400
+    max: 1200
+    step: 10
+    unit_of_measurement: ppm
+    icon: mdi:molecule-co2
+    initial: 600
+  brink_co2_max_ppm:
+    name: Brink CO2 max (flow = max here)
+    min: 800
+    max: 2500
+    step: 10
+    unit_of_measurement: ppm
+    icon: mdi:molecule-co2
+    initial: 1500
+  brink_flow_min:
+    name: Brink flow min
+    min: 50
+    max: 325
+    step: 5
+    unit_of_measurement: m³/h
+    icon: mdi:fan
+    initial: 50
+  brink_flow_max:
+    name: Brink flow max
+    min: 50
+    max: 325
+    step: 5
+    unit_of_measurement: m³/h
+    icon: mdi:fan
+    initial: 325
+  # Flow used while night cooling holds the bypass open (overrides CO2 flow).
+  brink_cooling_flow:
+    name: Brink cooling boost flow
+    min: 50
+    max: 325
+    step: 5
+    unit_of_measurement: m³/h
+    icon: mdi:fan-chevron-up
+    initial: 250
+
+  # --- bypass free-cooling thresholds (hysteresis: warm opens, cool closes) ---
+  # Thresholds are on the UNIT EXHAUST (reg 4046) scale — see automation 2.
+  brink_bypass_open_above:
+    name: Brink cooling - open above house temp (unit exhaust 4046)
+    min: 18
+    max: 28
+    step: 0.5
+    unit_of_measurement: °C
+    icon: mdi:thermometer-high
+    initial: 21.5
+  brink_bypass_close_below:
+    name: Brink cooling - close below house temp (unit exhaust 4046)
+    min: 16
+    max: 26
+    step: 0.5
+    unit_of_measurement: °C
+    icon: mdi:thermometer-low
+    initial: 20
+  brink_bypass_outdoor_margin:
+    name: Brink cooling - min outdoor advantage
+    min: 0
+    max: 5
+    step: 0.5
+    unit_of_measurement: °C
+    icon: mdi:thermometer-minus
+    initial: 1.0
+
+input_datetime:
+  brink_bypass_start:
+    name: Brink cooling window start
+    has_date: false
+    has_time: true
+    initial: "19:00:00"
+  brink_bypass_end:
+    name: Brink cooling window end
+    has_date: false
+    has_time: true
+    initial: "09:00:00"
+
+# ---------------------------------------------------------------------------
+# Automations
+# ---------------------------------------------------------------------------
+automation:
+  # =========================================================================
+  # 1) CO2-based ventilation (Flow mode) — worst room wins
+  #
+  # Takes the highest CO2 across all room sensors, maps it linearly to a flow
+  # setpoint in m³/h, rounds to 25 m³/h steps (so the fan does not chase every
+  # ppm wobble), then writes it to reg 8002. Re-asserts Flow mode + setpoint
+  # every 5 min, which also recovers the unit after a power cycle (it forgets
+  # registers 8000-8002 on mains loss).
+  # =========================================================================
+  - id: brink_co2_ventilation
+    alias: "Brink — CO2 ventilation (Flow, worst room)"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.co2_lada_co2
+          - sensor.co2_loznice_co2
+          - sensor.co2_lucka_co2
+          - sensor.co2
+      - platform: time_pattern
+        minutes: "/5"
+      - platform: homeassistant
+        event: start
+      - platform: state
+        entity_id: input_boolean.brink_co2_control_enable
+        to: "on"
+      # re-evaluate flow when cooling opens/closes the bypass or temps move
+      - platform: state
+        entity_id:
+          - select.brink_flair_325_bypass_mode
+          - sensor.brink_flair_325_outdoor_temperature_intake
+          - sensor.brink_flair_325_exhaust_temperature_to_outside
+    variables:
+      # highest CO2 across all rooms (ignores unavailable/unknown sensors)
+      co2: >-
+        {% set es = ['sensor.co2_lada_co2', 'sensor.co2_loznice_co2',
+                     'sensor.co2_lucka_co2', 'sensor.co2'] %}
+        {% set vs = es | map('states') | map('float', -1) | select('ge', 0) | list %}
+        {{ vs | max if vs | count > 0 else -1 }}
+      co2_min: "{{ states('input_number.brink_co2_min_ppm') | float(600) }}"
+      co2_max: "{{ states('input_number.brink_co2_max_ppm') | float(1500) }}"
+      flow_min: "{{ states('input_number.brink_flow_min') | float(50) }}"
+      flow_max: "{{ states('input_number.brink_flow_max') | float(325) }}"
+      frac: >-
+        {{ 0 if (co2 | float) < co2_min or co2_max <= co2_min
+           else ((co2 | float) - co2_min) / (co2_max - co2_min) }}
+      frac_c: "{{ [[frac | float, 0] | max, 1] | min }}"
+      flow_raw: "{{ flow_min + frac_c * (flow_max - flow_min) }}"
+      # CO2-driven flow: round to nearest 25 m³/h, clamp into [flow_min, flow_max]
+      co2_flow: >-
+        {{ [[ ((flow_raw / 25) | round(0)) * 25, flow_min ] | max, flow_max ]
+           | min | int }}
+      # Night-cooling boost: when free cooling holds the bypass open and it is
+      # still beneficial (cooler outside), lift the flow to move more cool air
+      # (overrides the CO2 value). Keeping this here makes the CO2 automation
+      # the SOLE writer of the flow setpoint, so the two features never fight.
+      cooling_on: "{{ states('input_boolean.brink_bypass_cooling_enable') != 'off' }}"
+      bypass_now: "{{ states('select.brink_flair_325_bypass_mode') }}"
+      house: "{{ states('sensor.brink_flair_325_exhaust_temperature_to_outside') | float(-999) }}"
+      out_n: "{{ states('sensor.brink_flair_325_outdoor_temperature_intake') | float(-999) }}"
+      t_start: "{{ states('input_datetime.brink_bypass_start') }}"
+      t_end: "{{ states('input_datetime.brink_bypass_end') }}"
+      now_t: "{{ now().strftime('%H:%M:%S') }}"
+      in_window: >-
+        {% if t_start <= t_end %}
+          {{ t_start <= now_t < t_end }}
+        {% else %}
+          {{ now_t >= t_start or now_t < t_end }}
+        {% endif %}
+      cooling_flow: "{{ states('input_number.brink_cooling_flow') | float(250) }}"
+      boost_active: >-
+        {{ cooling_on and bypass_now == 'Open' and in_window and out_n < house }}
+      # boost overrides CO2 flow while active
+      flow_target: "{{ [co2_flow, cooling_flow | int] | max if boost_active else co2_flow }}"
+      flow_current: "{{ states('number.brink_flair_325_flow_setpoint') | int(-1) }}"
+      mode_now: "{{ states('select.brink_flair_325_modbus_control_mode') }}"
+    condition:
+      # enabled unless the toggle exists AND is explicitly off (so it also
+      # works before the helper is created)
+      - "{{ states('input_boolean.brink_co2_control_enable') != 'off' }}"
+      # skip if no CO2 sensor is currently available
+      - "{{ (co2 | float) >= 0 }}"
+    action:
+      # make sure the unit is in Flow mode (idempotent)
+      - choose:
+          - conditions: "{{ mode_now != 'Flow' }}"
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.brink_flair_325_modbus_control_mode
+                data:
+                  option: "Flow"
+      # write the setpoint only when it actually changes
+      - choose:
+          - conditions: "{{ flow_target != flow_current }}"
+            sequence:
+              - service: number.set_value
+                target:
+                  entity_id: number.brink_flair_325_flow_setpoint
+                data:
+                  value: "{{ flow_target }}"
+
+  # =========================================================================
+  # 2) Night/morning free cooling via bypass — whole house
+  #
+  # Uses the unit's exhaust-air temperature (reg 4046) as the whole-house
+  # indicator. Why this, and the caveats:
+  #   * Room CO2 sensors are NOT used for temperature — their built-in ESP32
+  #     self-heats and inflates the reading by ~4-5 °C (CO2 ppm is still fine).
+  #   * The Flair 325 has no dedicated return-air sensor (docs/registers.md),
+  #     so 4046 (mixed extract air from the whole house) is the best
+  #     whole-house figure the unit offers.
+  #   * 4046 sits behind the heat exchanger, so while the bypass is CLOSED it
+  #     reads ~1-2 °C BELOW true house temp. The moment the bypass OPENS, the
+  #     extract air bypasses the exchanger and 4046 jumps to the true house
+  #     temperature. That makes this loop SELF-CORRECTING: it opens a touch
+  #     eagerly, then the now-accurate 4046 either confirms (stays open and
+  #     cools) or triggers an early close (house was already cool). Tune the
+  #     thresholds on the 4046 scale via the helpers.
+  # =========================================================================
+  - id: brink_bypass_free_cooling
+    alias: "Brink — night/morning free cooling (bypass, whole house)"
+    mode: restart
+    trigger:
+      - platform: state
+        entity_id:
+          - sensor.brink_flair_325_outdoor_temperature_intake
+          - sensor.brink_flair_325_exhaust_temperature_to_outside
+      - platform: time_pattern
+        minutes: "/5"
+      - platform: homeassistant
+        event: start
+    variables:
+      # whole-house temperature as seen by the unit (exhaust air, reg 4046)
+      house: "{{ states('sensor.brink_flair_325_exhaust_temperature_to_outside') | float(-999) }}"
+      out_n: "{{ states('sensor.brink_flair_325_outdoor_temperature_intake') | float(-999) }}"
+      warm: "{{ states('input_number.brink_bypass_open_above') | float(21.5) }}"
+      cool: "{{ states('input_number.brink_bypass_close_below') | float(20) }}"
+      margin: "{{ states('input_number.brink_bypass_outdoor_margin') | float(1.0) }}"
+      t_start: "{{ states('input_datetime.brink_bypass_start') }}"
+      t_end: "{{ states('input_datetime.brink_bypass_end') }}"
+      now_t: "{{ now().strftime('%H:%M:%S') }}"
+      # time window may wrap past midnight (e.g. 19:00 -> 09:00)
+      in_window: >-
+        {% if t_start <= t_end %}
+          {{ t_start <= now_t < t_end }}
+        {% else %}
+          {{ now_t >= t_start or now_t < t_end }}
+        {% endif %}
+      bypass_now: "{{ states('select.brink_flair_325_bypass_mode') }}"
+    condition:
+      # enabled unless the toggle exists AND is explicitly off
+      - "{{ states('input_boolean.brink_bypass_cooling_enable') != 'off' }}"
+      # skip while either temperature is unavailable
+      - "{{ house > -100 and out_n > -100 }}"
+    action:
+      - choose:
+          # --- OPEN: house warm, cooler outside, inside the window ---
+          - conditions: >-
+              {{ in_window and house > warm
+                 and out_n < (house - margin)
+                 and bypass_now != 'Open' }}
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.brink_flair_325_bypass_mode
+                data:
+                  option: "Open"
+          # --- CLOSE: only if we opened it; cooled / no advantage / window ended ---
+          - conditions: >-
+              {{ bypass_now == 'Open'
+                 and (not in_window or house <= cool or out_n >= (house - 0.5)) }}
+            sequence:
+              - service: select.select_option
+                target:
+                  entity_id: select.brink_flair_325_bypass_mode
+                data:
+                  option: "Auto"
